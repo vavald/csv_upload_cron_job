@@ -1,16 +1,16 @@
+# render.yaml  –  minimal & valid
 services:
   - type: cron
     name: drive-uploader
     env: python
-    schedule: "0 8 * * *"            # run 08:00 UTC → tweak to taste
-    plan: starter                    # cheapest plan; billed per run
+    schedule: "0 8 * * *"           # 08:00 UTC daily
+    plan: starter
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python upload.py"
     envVars:
-      - key: DRIVE_FOLDER_ID         # ID of your Drive folder
-        sync: false                  # add via dashboard
-      - key: CSV_NAME                # optional (defaults to dataset.csv)
-        value: ""                    # leave blank here; override later
-files:
-  - source: service_account.json     # private file → mounting path
-    target: service_account.json
+      - key: DRIVE_FOLDER_ID        # add the real value in the dashboard
+        sync: false
+      - key: CSV_NAME               # optional override (defaults to dataset.csv)
+        value: ""
+      - key: SERVICE_ACCOUNT_FILE   # tell the script where the key will mount
+        value: /etc/secrets/service_account.json

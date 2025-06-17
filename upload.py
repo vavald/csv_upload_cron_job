@@ -1,13 +1,12 @@
+# upload.py  – only the first lines change
 import os, datetime, pathlib
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-# ----- config pulled from Render -----
-DRIVE_FOLDER_ID = os.environ["DRIVE_FOLDER_ID"]      # set in Render dashboard
-CSV_NAME        = os.getenv("CSV_NAME", "webflow_requests.csv")  # defaults to dataset.csv
-SERVICE_ACCOUNT_FILE = "service_account.json"        # mounted private file
-# -------------------------------------
+SERVICE_ACCOUNT_FILE = os.environ["SERVICE_ACCOUNT_FILE"]  # ← new
+DRIVE_FOLDER_ID = os.environ["DRIVE_FOLDER_ID"]
+CSV_NAME        = os.getenv("CSV_NAME", "dataset.csv")
 
 def main():
     # 1. Auth
