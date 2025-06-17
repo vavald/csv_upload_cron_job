@@ -1,39 +1,44 @@
-# upload.py  – only the first lines change
-import os, datetime, pathlib
+import os, pathlib, io
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseUpload
 
-SERVICE_ACCOUNT_FILE = os.environ["SERVICE_ACCOUNT_FILE"]  # ← new
-DRIVE_FOLDER_ID = os.environ["DRIVE_FOLDER_ID"]
-CSV_NAME        = os.getenv("CSV_NAME", "dataset.csv")
+SERVICE_ACCOUNT_FILE = os.environ["SERVICE_ACCOUNT_FILE"]
+DRIVE_FOLDER_ID      = os.environ["DRIVE_FOLDER_ID"]
+CSV_NAME             = os.getenv("CSV_NAME", "dataset.csv")
 
 def main():
-    # 1. Auth
     creds = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE,
         scopes=["https://www.googleapis.com/auth/drive.file"],
     )
     drive = build("drive", "v3", credentials=creds)
 
-    # 2. Locate the CSV (same dir as script)
     here = pathlib.Path(__file__).parent
     csv_path = here / CSV_NAME
-
     if not csv_path.exists():
-        raise FileNotFoundError(f"💥 {csv_path} not found")
+        raise FileNotFoundError(f"{csv_path} not found")
 
-    # 3. Build metadata
-    stamp = datetime.date.today().isoformat()
-    file_meta = {
-        "name": f"{csv_path.stem}_{stamp}{csv_path.suffix}",
-        "parents": [DRIVE_FOLDER_ID],
-    }
-    media = MediaFileUpload(csv_path, mimetype="text/csv")
+    # --- look for an existing file with the same name in the folder ---
+    query = (
+        f"'{DRIVE_FOLDER_ID}' in parents "
+        f"and name = '{CSV_NAME}' "
+        f"and trashed = false"
+    )
+    resp = drive.files().list(q=query, spaces="drive", fields="files(id)").execute()
+    existing_id = resp["files"][0]["id"] if resp["files"] else None
 
-    # 4. Upload
-    drive.files().create(body=file_meta, media_body=media, fields="id").execute()
-    print(f"✅ Uploaded {csv_path.name} as {file_meta['name']}")
+    media = MediaIoBaseUpload(io.FileIO(csv_path, "rb"), mimetype="text/csv", resumable=True)
+
+    if existing_id:
+        # replace contents, keep the same file URL
+        drive.files().update(fileId=existing_id, media_body=media).execute()
+        print(f"✅ Replaced contents of {CSV_NAME} (fileId={existing_id})")
+    else:
+        # first-time upload
+        file_meta = {"name": CSV_NAME, "parents": [DRIVE_FOLDER_ID]}
+        drive.files().create(body=file_meta, media_body=media).execute()
+        print(f"✅ Uploaded new {CSV_NAME}")
 
 if __name__ == "__main__":
     main()
